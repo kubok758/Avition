@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avition Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root { --primary-color: #2ecc71; --bg-color: #f8f9fa; }
+        body { background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding-bottom: 80px; }
+        
+        .product-card { border: none; border-radius: 12px; background: white; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: transform 0.2s; cursor: pointer; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .product-img { height: 180px; object-fit: cover; width: 100%; }
+        
+        .chat-list-item { cursor: pointer; transition: 0.2s; border-radius: 10px; }
+        .chat-list-item:hover { background: #e9ecef; }
+        .chat-avatar { width: 40px; height: 40px; background: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #adb5bd; font-size: 20px; flex-shrink: 0; }
+
+        .chat-window { height: 65vh; overflow-y: auto; background: #f1f2f6; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 10px 15px; border-radius: 15px; max-width: 75%; font-size: 0.95rem; position: relative; word-wrap: break-word; }
+        .msg-me { background: var(--primary-color); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg-other { background: white; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg-img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; padding: 10px 0; display: flex; justify-content: space-around; }
+        .nav-item-custom { text-align: center; color: #95a5a6; font-size: 0.8rem; cursor: pointer; width: 100%; position: relative; }
+        .nav-item-custom.active { color: var(--primary-color); font-weight: bold; }
+        .nav-item-custom i { font-size: 1.4rem; display: block; margin-bottom: 2px; }
+
+        .nav-badge { position: absolute; top: 4px; right: 25%; background: #e74c3c; color: white; border-radius: 50%; min-width: 18px; height: 18px; padding: 0 4px; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; border: 2px solid white; }
+
+        .gallery-container { position: relative; width: 100%; height: 400px; background: #000; border-radius: 12px; overflow: hidden; }
+        .gallery-img { width: 100%; height: 100%; object-fit: contain; }
+        .gallery-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: 0.2s; }
+        .gallery-btn:hover { background: rgba(0,0,0,0.8); }
+        .gallery-btn.prev { left: 10px; }
+        .gallery-btn.next { right: 10px; }
+        .gallery-counter { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; z-index: 10; }
+
+        /* --- СТИЛИ ДЛЯ СВОРАЧИВАНИЯ ТЕКСТА --- */
+        .desc-box { position: relative; overflow: hidden; transition: max-height 0.4s ease; }
+        /* Состояние свернуто: ограничена высота и градиент */
+        .desc-collapsed { max-height: 110px; }
+        .desc-collapsed::after { 
+            content: ""; 
+            position: absolute; 
+            bottom: 0; left: 0; 
+            width: 100%; height: 60px; 
+            background: linear-gradient(to bottom, transparent, white); 
+            pointer-events: none; 
+        }
+        /* Состояние развернуто: высота авто (большая) */
+        .desc-expanded { max-height: 2000px; } 
+
+        .hidden { display: none !important; }
+        #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .btn-float { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; border-radius: 50%; font-size: 24px; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); z-index: 999; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-light bg-white sticky-top shadow-sm" style="height: 60px;">
+        <div class="container d-flex justify-content-between align-items-center">
+            <span class="navbar-brand fw-bold text-success fs-4" id="pageTitle">Avition</span>
+            <div id="authBtnGroup">
+                <button class="btn btn-sm btn-outline-success" onclick="openAuthModal()">Войти</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        
+        <div id="viewFeed" class="view-section">
+            <div class="row g-3" id="productsGrid"></div>
+        </div>
+
+        <div id="viewChats" class="view-section hidden">
+            <h4 class="mb-3">Сообщения</h4>
+            <div id="chatList" class="d-flex flex-column gap-2"></div>
+            <div id="emptyChats" class="text-center text-muted mt-5 hidden">У вас пока нет чатов</div>
+        </div>
+
+        <div id="viewProfile" class="view-section hidden">
+            <div class="card border-0 shadow-sm p-3 mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; font-size: 24px;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-0 fw-bold" id="profileName">Гость</h5>
+                        <small class="text-muted" id="profileEmail">email@example.com</small>
+                    </div>
+                    <button class="btn btn-light text-danger" onclick="app.logout()"><i class="bi bi-box-arrow-right"></i></button>
+                </div>
+                <div id="adminBadge" class="alert alert-danger p-2 mb-3 hidden"><i class="bi bi-shield-lock-fill"></i> Вы администратор</div>
+                <hr>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="app.editProfileName()">Изменить имя</button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="app.deleteAccount()">Удалить аккаунт</button>
+                </div>
+            </div>
+            <h5 class="mb-3">Мои объявления</h5>
+            <div class="row g-3" id="myProductsGrid"></div>
+        </div>
+
+        <div id="viewCreate" class="view-section hidden">
+            <div class="card shadow-sm border-0 p-4">
+                <h4 class="mb-3" id="createPageTitle">Новое объявление</h4>
+                <form onsubmit="app.saveProduct(event)">
+                    <input type="hidden" id="editProductId">
+                    <div class="mb-3"><label>Название</label><input type="text" class="form-control" id="prodTitle" required></div>
+                    <div class="mb-3"><label>Цена (₽)</label><input type="number" class="form-control" id="prodPrice" required></div>
+                    <div class="mb-3"><label>Описание</label><textarea class="form-control" id="prodDesc" rows="4" required></textarea></div>
+                    <div class="mb-3">
+                        <label>Фото (можно несколько)</label>
+                        <input type="file" class="form-control" id="prodImg" accept="image/*" multiple>
+                        <small class="text-muted" id="imgHelp">Оставьте пустым, если не хотите менять фото</small>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success" id="saveBtn">Опубликовать</button>
+                        <button type="button" class="btn btn-light" onclick="app.nav('viewFeed')">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="viewDetail" class="view-section hidden">
+            <button class="btn btn-link text-muted mb-2 ps-0" onclick="app.nav('viewFeed')">← Назад</button>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    
+                    <div class="gallery-container shadow-sm">
+                        <img id="detailImg" src="" class="gallery-img">
+                        <button class="gallery-btn prev hidden" id="btnPrevImg" onclick="app.slideGallery(-1)"><i class="bi bi-chevron-left"></i></button>
+                        <button class="gallery-btn next hidden" id="btnNextImg" onclick="app.slideGallery(1)"><i class="bi bi-chevron-right"></i></button>
+                        <div class="gallery-counter hidden" id="galleryCounter">1/1</div>
+                    </div>
+
+                </div>
+                <div class="col-md-6">
+                    <h2 id="detailTitle" class="fw-bold mt-3"></h2>
+                    <h3 class="text-success mb-3 fw-bold" id="detailPrice" style="font-size: 2rem;"></h3>
+                    
+                    <div id="ownerControls" class="card p-2 mb-3 border-danger hidden" style="border-style: dashed;">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-dark flex-grow-1" onclick="app.editCurrentProduct()">Редактировать</button>
+                            <button class="btn btn-danger flex-grow-1" onclick="app.deleteCurrentProduct()">Удалить</button>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-white rounded shadow-sm mb-3">
+                        <div id="detailDesc" class="desc-box desc-collapsed" style="white-space: pre-wrap;"></div>
+                        <button id="btnToggleDesc" class="btn btn-link p-0 mt-2 text-decoration-none fw-bold text-success hidden" onclick="app.toggleDesc()">Читать далее...</button>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                        <div>
+                            <small class="text-muted">Продавец</small>
+                            <div class="fw-bold" id="detailSeller"></div>
+                        </div>
+                        <button id="btnWriteSeller" class="btn btn-success" onclick="app.startChat()">Написать</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="viewChatRoom" class="view-section hidden">
+            <div class="d-flex align-items-center mb-2 gap-2">
+                <button class="btn btn-sm btn-light" onclick="app.nav('viewChats')"><i class="bi bi-chevron-left"></i></button>
+                <div class="chat-avatar bg-success text-white" style="width:35px; height:35px; font-size:16px;">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="fw-bold text-truncate" id="chatHeaderName">Имя</div>
+                    <div class="small text-muted text-truncate" id="chatHeaderProduct">Товар</div>
+                </div>
+            </div>
+            <div id="messagesBox" class="chat-window mb-2"></div>
+            <div class="d-flex gap-2 align-items-center bg-white p-2 rounded shadow-sm">
+                <label class="btn btn-light text-secondary m-0" style="width: 40px;">
+                    <i class="bi bi-camera"></i>
+                    <input type="file" id="chatImgInput" accept="image/*" hidden onchange="app.sendImageMessage()">
+                </label>
+                <input type="text" id="chatTextInput" class="form-control border-0" placeholder="Сообщение...">
+                <button class="btn btn-success rounded-circle" style="width: 40px; height: 40px;" onclick="app.sendTextMessage()"><i class="bi bi-send-fill"></i></button>
+            </div>
+        </div>
+
+    </div>
+
+    <button id="fabBtn" class="btn btn-success btn-float hidden" onclick="app.openCreateMode()">
+        <i class="bi bi-plus-lg"></i>
+    </button>
+
+    <div class="bottom-nav hidden" id="bottomNav">
+        <div class="nav-item-custom active" onclick="app.nav('viewFeed')" id="navFeed"><i class="bi bi-house-door"></i> Лента</div>
+        <div class="nav-item-custom" onclick="app.nav('viewChats')" id="navChats">
+            <i class="bi bi-chat-dots"></i> Чаты
+            <span id="navChatBadge" class="nav-badge hidden">0</span>
+        </div>
+        <div class="nav-item-custom" onclick="app.nav('viewProfile')" id="navProfile"><i class="bi bi-person-circle"></i> Профиль</div>
+    </div>
+
+    <div id="loadingOverlay" class="hidden"><div class="spinner-border text-success" role="status"></div></div>
+
+    <div class="modal fade" id="authModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0"><h5 class="modal-title">Вход</h5><button type="button" class="btn-close" onclick="closeAuthModal()"></button></div>
+                <div class="modal-body">
+                    <ul class="nav nav-pills nav-fill mb-3"><li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#loginTab">Вход</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#regTab">Регистрация</button></li></ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="loginTab">
+                            <form onsubmit="app.login(event)"><input class="form-control mb-2" id="lEmail" placeholder="Email" required><input type="password" class="form-control mb-2" id="lPass" placeholder="Пароль" required><button class="btn btn-success w-100">Войти</button></form>
+                        </div>
+                        <div class="tab-pane fade" id="regTab">
+                            <form onsubmit="app.register(event)"><input class="form-control mb-2" id="rName" placeholder="Имя" required><input class="form-control mb-2" id="rEmail" placeholder="Email" required><input type="password" class="form-control mb-2" id="rPass" placeholder="Пароль (6+ симв)" required><input type="password" class="form-control mb-2" id="rPass2" placeholder="Повтор пароля" required><button class="btn btn-success w-100">Регистрация</button></form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyDvV4-QJZPc2RyODuOQpg44hvUcspD_XqE",
+          authDomain: "super-market-2025.firebaseapp.com",
+          projectId: "super-market-2025",
+          storageBucket: "super-market-2025.firebasestorage.app",
+          messagingSenderId: "757873908830",
+          appId: "1:757873908830:web:dedfaf2b85e3c02029a8cf"
+        };
+        
+        const ADMIN_EMAIL = "artemborovitskiy0312@gmail.com";
+
+        let modalInstance = null;
+        function openAuthModal() { modalInstance = new bootstrap.Modal(document.getElementById('authModal')); modalInstance.show(); }
+        function closeAuthModal() { if(modalInstance) modalInstance.hide(); }
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+
+            window.app = {
+                user: null,
+                activeChatId: null,
+                currentProduct: null,
+                unsubscribeChats: null,
+                unsubscribeMessages: null,
+                
+                galleryImages: [],
+                galleryIndex: 0,
+
+                init: function() {
+                    auth.onAuthStateChanged(u => {
+                        this.user = u;
+                        this.updateUI();
+                        if(u) {
+                            this.loadChatsList();
+                            if(document.getElementById('viewProfile').classList.contains('hidden') === false) this.loadMyProducts();
+                        } else {
+                             if(!document.getElementById('viewDetail').classList.contains('hidden')){}
+                             else this.nav('viewFeed');
+                        }
+                    });
+                    this.loadFeed();
+                },
+
+                formatPrice: function(price) { return new Intl.NumberFormat('ru-RU').format(price); },
+
+                updateUI: function() {
+                    const nav = document.getElementById('bottomNav');
+                    const authBtn = document.getElementById('authBtnGroup');
+                    
+                    if(this.user) {
+                        nav.classList.remove('hidden');
+                        authBtn.classList.add('hidden');
+                        document.getElementById('profileName').innerText = this.user.displayName || "Пользователь";
+                        document.getElementById('profileEmail').innerText = this.user.email;
+                        
+                        if(this.user.email === ADMIN_EMAIL) {
+                            document.getElementById('adminBadge').classList.remove('hidden');
+                        } else {
+                            document.getElementById('adminBadge').classList.add('hidden');
+                        }
+                    } else {
+                        nav.classList.add('hidden');
+                        authBtn.classList.remove('hidden');
+                    }
+                    this.checkFabVisibility();
+                },
+
+                checkFabVisibility: function() {
+                    const fab = document.getElementById('fabBtn');
+                    const isFeed = !document.getElementById('viewFeed').classList.contains('hidden');
+                    const isProfile = !document.getElementById('viewProfile').classList.contains('hidden');
+                    if(this.user && (isFeed || isProfile)) fab.classList.remove('hidden');
+                    else fab.classList.add('hidden');
+                },
+
+                nav: function(viewId) {
+                    document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                    document.getElementById(viewId).classList.remove('hidden');
+                    document.querySelectorAll('.nav-item-custom').forEach(el => el.classList.remove('active'));
+                    
+                    if(viewId === 'viewFeed') { document.getElementById('navFeed').classList.add('active'); this.loadFeed(); }
+                    if(viewId === 'viewChats') document.getElementById('navChats').classList.add('active');
+                    if(viewId === 'viewProfile') { document.getElementById('navProfile').classList.add('active'); this.loadMyProducts(); }
+                    this.checkFabVisibility();
+                },
+
+                login: async function(e) { e.preventDefault(); try { await auth.signInWithEmailAndPassword(document.getElementById('lEmail').value, document.getElementById('lPass').value); closeAuthModal(); } catch(err){ alert(err.message); } },
+                register: async function(e) { 
+                    e.preventDefault(); 
+                    if(document.getElementById('rPass').value !== document.getElementById('rPass2').value) return alert("Пароли не совпадают!");
+                    try { 
+                        const cr = await auth.createUserWithEmailAndPassword(document.getElementById('rEmail').value, document.getElementById('rPass').value);
+                        await cr.user.updateProfile({displayName: document.getElementById('rName').value});
+                        closeAuthModal(); window.location.reload();
+                    } catch(err){ alert(err.message); } 
+                },
+                logout: () => auth.signOut(),
+                deleteAccount: async function() {
+                    if(!confirm("Точно удалить аккаунт?")) return;
+                    try { await this.user.delete(); window.location.reload(); } catch(e) { alert("Ошибка удаления"); }
+                },
+                editProfileName: async function() {
+                    const newName = prompt("Новое имя:", this.user.displayName);
+                    if(newName) { await this.user.updateProfile({displayName: newName}); this.updateUI(); }
+                },
+
+                openCreateMode: function() {
+                    document.getElementById('createPageTitle').innerText = "Новое объявление";
+                    document.getElementById('saveBtn').innerText = "Опубликовать";
+                    document.getElementById('editProductId').value = "";
+                    document.querySelector('#viewCreate form').reset();
+                    document.getElementById('imgHelp').classList.add('hidden');
+                    this.nav('viewCreate');
+                },
+
+                openEditMode: function(id, data) {
+                    document.getElementById('createPageTitle').innerText = "Редактировать";
+                    document.getElementById('saveBtn').innerText = "Сохранить";
+                    document.getElementById('editProductId').value = id;
+                    document.getElementById('prodTitle').value = data.title;
+                    document.getElementById('prodPrice').value = data.price;
+                    document.getElementById('prodDesc').value = data.description;
+                    document.getElementById('imgHelp').classList.remove('hidden');
+                    this.nav('viewCreate');
+                },
+
+                saveProduct: async function(e) {
+                    e.preventDefault();
+                    this.loader(true);
+                    const editId = document.getElementById('editProductId').value;
+                    const files = document.getElementById('prodImg').files; 
+                    
+                    try {
+                        let imageUrls = [];
+                        if(files.length > 0) {
+                            for(let i=0; i<files.length; i++) {
+                                const url = await this.compress(files[i]);
+                                imageUrls.push(url);
+                            }
+                        } else if(editId && this.currentProduct) {
+                            imageUrls = this.currentProduct.images || [this.currentProduct.imageUrl];
+                        }
+
+                        const data = {
+                            title: document.getElementById('prodTitle').value,
+                            price: Number(document.getElementById('prodPrice').value),
+                            description: document.getElementById('prodDesc').value,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            images: imageUrls,
+                            imageUrl: imageUrls[0]
+                        };
+
+                        if(editId) {
+                            await db.collection('products').doc(editId).update(data);
+                        } else {
+                            if(imageUrls.length === 0) throw new Error("Фото обязательно!");
+                            data.sellerId = this.user.uid;
+                            data.sellerName = this.user.displayName || "Продавец";
+                            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                            await db.collection('products').add(data);
+                        }
+                        this.nav('viewFeed');
+                    } catch(e) { alert(e.message); }
+                    finally { this.loader(false); }
+                },
+
+                deleteProduct: async function(id) {
+                    if(confirm("Удалить?")) { await db.collection('products').doc(id).delete(); this.nav('viewFeed'); }
+                },
+
+                deleteCurrentProduct: function() {
+                    if(this.currentProduct) this.deleteProduct(this.currentProduct.id);
+                },
+                editCurrentProduct: function() {
+                    if(this.currentProduct) this.openEditMode(this.currentProduct.id, this.currentProduct);
+                },
+
+                loadFeed: function() {
+                    db.collection('products').orderBy('createdAt', 'desc').limit(50).get().then(snap => {
+                        const grid = document.getElementById('productsGrid'); grid.innerHTML = '';
+                        snap.forEach(doc => grid.innerHTML += this.renderCard(doc.id, doc.data()));
+                    });
+                },
+
+                loadMyProducts: function() {
+                    if(!this.user) return;
+                    db.collection('products').where('sellerId', '==', this.user.uid).get().then(snap => {
+                        const grid = document.getElementById('myProductsGrid'); grid.innerHTML = '';
+                        if(snap.empty) grid.innerHTML = '<div class="text-muted text-center p-3">Нет объявлений</div>';
+                        snap.forEach(doc => {
+                            const d = doc.data();
+                            const safe = JSON.stringify(d).replace(/"/g, '&quot;');
+                            grid.innerHTML += `
+                                <div class="col-6 col-md-4">
+                                    <div class="card h-100 shadow-sm">
+                                        <img src="${d.imageUrl}" class="card-img-top" style="height:120px; object-fit:cover">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">${d.title}</h6>
+                                            <div class="d-flex justify-content-between mt-2">
+                                                <button class="btn btn-sm btn-outline-primary" onclick='app.openEditMode("${doc.id}", ${safe})'><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick='app.deleteProduct("${doc.id}")'><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>`;
+                        });
+                    });
+                },
+
+                // --- НОВАЯ ЛОГИКА ОПИСАНИЯ ---
+                toggleDesc: function() {
+                    const el = document.getElementById('detailDesc');
+                    const btn = document.getElementById('btnToggleDesc');
+                    
+                    if(el.classList.contains('desc-collapsed')) {
+                        el.classList.remove('desc-collapsed');
+                        el.classList.add('desc-expanded');
+                        btn.innerText = "Свернуть";
+                    } else {
+                        el.classList.add('desc-collapsed');
+                        el.classList.remove('desc-expanded');
+                        btn.innerText = "Читать далее...";
+                    }
+                },
+
+                showDetail: function(id, data) {
+                    this.currentProduct = { id, ...data };
+                    
+                    this.galleryImages = data.images || [data.imageUrl];
+                    this.galleryIndex = 0;
+                    this.updateGalleryView();
+
+                    document.getElementById('detailTitle').innerText = data.title;
+                    document.getElementById('detailPrice').innerText = this.formatPrice(data.price) + ' ₽';
+                    document.getElementById('detailSeller').innerText = data.sellerName;
+                    
+                    // -- ЛОГИКА ДЛЯ ТЕКСТА --
+                    const descEl = document.getElementById('detailDesc');
+                    const descBtn = document.getElementById('btnToggleDesc');
+                    
+                    descEl.innerText = data.description;
+                    
+                    // Сбрасываем состояние (свернуто)
+                    descEl.classList.remove('desc-expanded');
+                    descEl.classList.add('desc-collapsed');
+                    descBtn.innerText = "Читать далее...";
+                    
+                    // Проверяем длину текста (если короткий - не скрываем)
+                    if(data.description.length < 200) {
+                        descEl.classList.remove('desc-collapsed');
+                        descBtn.classList.add('hidden');
+                    } else {
+                        descBtn.classList.remove('hidden');
+                    }
+                    // ----------------------
+
+                    const btnWrite = document.getElementById('btnWriteSeller');
+                    const controls = document.getElementById('ownerControls');
+                    const isOwner = this.user && data.sellerId === this.user.uid;
+                    const isAdmin = this.user && this.user.email === ADMIN_EMAIL;
+
+                    if(isOwner || isAdmin) controls.classList.remove('hidden');
+                    else controls.classList.add('hidden');
+                    
+                    if(isOwner) btnWrite.classList.add('hidden');
+                    else btnWrite.classList.remove('hidden');
+                    
+                    this.nav('viewDetail');
+                },
+
+                updateGalleryView: function() {
+                    const img = document.getElementById('detailImg');
+                    const prevBtn = document.getElementById('btnPrevImg');
+                    const nextBtn = document.getElementById('btnNextImg');
+                    const counter = document.getElementById('galleryCounter');
+
+                    img.src = this.galleryImages[this.galleryIndex];
+
+                    if(this.galleryImages.length > 1) {
+                        prevBtn.classList.remove('hidden');
+                        nextBtn.classList.remove('hidden');
+                        counter.classList.remove('hidden');
+                        counter.innerText = `${this.galleryIndex + 1}/${this.galleryImages.length}`;
+                    } else {
+                        prevBtn.classList.add('hidden');
+                        nextBtn.classList.add('hidden');
+                        counter.classList.add('hidden');
+                    }
+                },
+
+                slideGallery: function(step) {
+                    const newIndex = this.galleryIndex + step;
+                    if(newIndex >= 0 && newIndex < this.galleryImages.length) {
+                        this.galleryIndex = newIndex;
+                        this.updateGalleryView();
+                    }
+                },
+
+                renderCard: function(id, d) {
+                    const safe = JSON.stringify(d).replace(/"/g, '&quot;');
+                    const thumb = (d.images && d.images.length > 0) ? d.images[0] : d.imageUrl;
+                    
+                    return `<div class="col-6 col-md-4 col-lg-3">
+                        <div class="product-card h-100" onclick='app.showDetail("${id}", ${safe})'>
+                            <img src="${thumb}" class="product-img">
+                            <div class="p-3">
+                                <h5 class="fw-bold mb-1">${this.formatPrice(d.price)} ₽</h5>
+                                <div class="text-truncate">${d.title}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                },
+
+                // --- ЧАТЫ ---
+                startChat: async function() {
+                    if(!this.user) return openAuthModal();
+                    const prod = this.currentProduct;
+                    const chatId = [this.user.uid, prod.sellerId, prod.id].sort().join('_');
+                    
+                    const chatRef = db.collection('chats').doc(chatId);
+                    await chatRef.set({
+                        users: [this.user.uid, prod.sellerId],
+                        userNames: {
+                            [this.user.uid]: this.user.displayName || "Я",
+                            [prod.sellerId]: prod.sellerName || "Продавец"
+                        },
+                        productTitle: prod.title,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        [`lastSeen.${this.user.uid}`]: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
+                    this.openChatRoom(chatId, prod.sellerName, prod.title);
+                },
+
+                loadChatsList: function() {
+                    if(this.unsubscribeChats) this.unsubscribeChats();
+                    this.unsubscribeChats = db.collection('chats')
+                        .where('users', 'array-contains', this.user.uid)
+                        .onSnapshot(snap => {
+                            const list = document.getElementById('chatList');
+                            const badge = document.getElementById('navChatBadge');
+                            list.innerHTML = '';
+                            document.getElementById('emptyChats').classList.toggle('hidden', !snap.empty);
+                            
+                            let chats = [];
+                            snap.forEach(doc => chats.push({ id: doc.id, ...doc.data() }));
+                            chats.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+
+                            let totalUnread = 0;
+
+                            chats.forEach(d => {
+                                const otherId = d.users.find(u => u !== this.user.uid);
+                                let otherName = (d.userNames && d.userNames[otherId]) ? d.userNames[otherId] : "Собеседник";
+                                
+                                const lastMsgTime = d.updatedAt?.seconds || 0;
+                                const mySeenTime = (d.lastSeen && d.lastSeen[this.user.uid]?.seconds) || 0;
+                                const isUnread = lastMsgTime > mySeenTime;
+                                
+                                if(isUnread) totalUnread++;
+
+                                const bgClass = isUnread ? 'bg-light border-success border-2' : 'bg-white border';
+                                const unreadDot = isUnread ? '<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>' : '';
+
+                                list.innerHTML += `
+                                    <div class="p-3 ${bgClass} rounded shadow-sm chat-list-item d-flex align-items-center gap-3 position-relative" 
+                                         onclick="app.openChatRoom('${d.id}', '${otherName}', '${d.productTitle}')">
+                                        <div class="chat-avatar position-relative">
+                                            <i class="bi bi-person-fill"></i>
+                                            ${unreadDot}
+                                        </div>
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="fw-bold text-truncate ${isUnread ? 'text-success' : ''}">${otherName}</div>
+                                                <small class="text-muted ms-2" style="font-size: 0.75rem;">${new Date((d.updatedAt?.seconds || 0)*1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
+                                            </div>
+                                            <div class="small text-muted text-truncate" style="${isUnread ? 'font-weight:bold; color:black!important' : ''}">${d.lastMessage || 'Начните общение'}</div>
+                                            <div class="small text-secondary text-truncate" style="font-size:0.7rem">${d.productTitle}</div>
+                                        </div>
+                                    </div>`;
+                            });
+
+                            if(totalUnread > 0) {
+                                badge.innerText = totalUnread;
+                                badge.classList.remove('hidden');
+                            } else {
+                                badge.classList.add('hidden');
+                            }
+                        });
+                },
+
+                openChatRoom: function(chatId, userName, prodTitle) {
+                    this.activeChatId = chatId;
+                    document.getElementById('chatHeaderName').innerText = userName;
+                    document.getElementById('chatHeaderProduct').innerText = prodTitle;
+                    
+                    db.collection('chats').doc(chatId).update({
+                        [`lastSeen.${this.user.uid}`]: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    this.nav('viewChatRoom');
+                    this.loadMessages(chatId);
+                },
+
+                loadMessages: function(chatId) {
+                    if(this.unsubscribeMessages) this.unsubscribeMessages();
+                    const box = document.getElementById('messagesBox');
+                    box.innerHTML = '';
+                    
+                    this.unsubscribeMessages = db.collection('chats').doc(chatId).collection('messages')
+                        .orderBy('ts', 'asc')
+                        .onSnapshot(snap => {
+                            snap.docChanges().forEach(change => {
+                                if(change.type === 'added') {
+                                    const m = change.doc.data();
+                                    const isMe = m.uid === this.user.uid;
+                                    let content = m.text ? `<div>${m.text}</div>` : '';
+                                    if(m.img) content += `<img src="${m.img}" class="msg-img">`;
+                                    
+                                    const div = document.createElement('div');
+                                    div.className = `message ${isMe ? 'msg-me' : 'msg-other'}`;
+                                    div.innerHTML = content;
+                                    box.appendChild(div);
+                                    box.scrollTop = box.scrollHeight;
+                                }
+                            });
+                        });
+                },
+
+                sendTextMessage: async function() {
+                    const inp = document.getElementById('chatTextInput');
+                    const text = inp.value.trim();
+                    if(!text) return;
+                    await this.pushMessage({ text: text });
+                    inp.value = '';
+                },
+
+                sendImageMessage: async function() {
+                    const file = document.getElementById('chatImgInput').files[0];
+                    if(!file) return;
+                    this.loader(true);
+                    const img64 = await this.compress(file);
+                    await this.pushMessage({ img: img64, text: '📷 Фото' });
+                    document.getElementById('chatImgInput').value = '';
+                    this.loader(false);
+                },
+
+                pushMessage: async function(msgData) {
+                    const payload = { ...msgData, uid: this.user.uid, ts: firebase.firestore.FieldValue.serverTimestamp() };
+                    await db.collection('chats').doc(this.activeChatId).collection('messages').add(payload);
+                    await db.collection('chats').doc(this.activeChatId).update({
+                        lastMessage: msgData.text || 'Фото',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        [`lastSeen.${this.user.uid}`]: firebase.firestore.FieldValue.serverTimestamp() 
+                    }, {merge: true});
+                },
+
+                compress: function(file) {
+                    return new Promise(r => {
+                        const reader = new FileReader(); reader.readAsDataURL(file);
+                        reader.onload = e => {
+                            const img = new Image(); img.src = e.target.result;
+                            img.onload = () => {
+                                const cvs = document.createElement('canvas');
+                                const ratio = 500 / img.width;
+                                cvs.width = 500; cvs.height = img.height * ratio;
+                                cvs.getContext('2d').drawImage(img,0,0,cvs.width,cvs.height);
+                                r(cvs.toDataURL('image/jpeg', 0.6));
+                            }
+                        }
+                    });
+                },
+                loader: function(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
+            };
+
+            document.addEventListener('DOMContentLoaded', () => window.app.init());
+        } catch(e) { console.error(e); alert("Ошибка: " + e.message); }
+    </script>
+</body>
+</html>
